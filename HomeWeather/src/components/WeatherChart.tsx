@@ -1,0 +1,108 @@
+import React from 'react';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
+import { colors } from '../theme/colors';
+
+interface ChartDataPoint {
+  label: string;
+  value: number;
+}
+
+interface WeatherChartProps {
+  title: string;
+  data: ChartDataPoint[];
+  type: 'temperature' | 'humidity';
+}
+
+const screenWidth = Dimensions.get('window').width;
+
+export const WeatherChart: React.FC<WeatherChartProps> = ({ title, data, type }) => {
+  const isTemp = type === 'temperature';
+  const mainColor = isTemp ? colors.temperature : colors.humidity;
+
+  if (!data || data.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>{title}</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Pas assez de données pour le graphique</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Pour éviter des graphiques illisibles, on limite le nombre d'étiquettes affichées
+  // si on a beaucoup de points (ex: plus de 10 points on affiche 1 sur 3 ou seulement la première et la dernière)
+  const labels = data.map(d => d.label);
+  const values = data.map(d => d.value);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>{title}</Text>
+      <LineChart
+        data={{
+          labels: labels,
+          datasets: [
+            {
+              data: values,
+            },
+          ],
+        }}
+        width={screenWidth - 40} // margins
+        height={220}
+        yAxisSuffix={isTemp ? "°" : "%"}
+        chartConfig={{
+          backgroundColor: colors.surface,
+          backgroundGradientFrom: colors.surface,
+          backgroundGradientTo: colors.surface,
+          decimalPlaces: 1,
+          color: (opacity = 1) => `rgba(${isTemp ? '255,107,107' : '78,205,196'}, ${opacity})`,
+          labelColor: (opacity = 1) => `rgba(160,160,160, ${opacity})`,
+          style: {
+            borderRadius: 16,
+          },
+          propsForDots: {
+            r: "4",
+            strokeWidth: "2",
+            stroke: mainColor,
+          },
+        }}
+        bezier
+        style={{
+          marginVertical: 8,
+          borderRadius: 16,
+        }}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 15,
+    marginVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  title: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    marginLeft: 5,
+  },
+  emptyContainer: {
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+});
