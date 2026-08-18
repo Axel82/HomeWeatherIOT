@@ -12,16 +12,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.1.1  # Version stable et non dépréciée
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.0.2  # Version stable et non dépréciée
         with:
           node-version: 18.x
           cache: npm
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5  # Migration vers v5 (recommandé)
         with:
           distribution: temurin
           java-version: '17'
@@ -37,7 +37,7 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.3.0  # Version stable et non dépréciée
         with:
           name: homeweather-apk
           path: android/app/build/outputs/apk/release/app-release.apk
