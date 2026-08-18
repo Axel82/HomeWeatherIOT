@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+import { getSupabaseClient } from '../config/supabase';
 import { WeatherData } from '../models/WeatherData';
 
 export class WeatherRepository {
@@ -7,7 +7,7 @@ export class WeatherRepository {
    * @param limit Nombre de lignes à récupérer (défaut: 50)
    */
   static async getRecentWeatherData(limit: number = 50): Promise<WeatherData[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from('WeatherData')
       .select('*')
       .order('created_at', { ascending: false })

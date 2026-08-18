@@ -1,10 +1,11 @@
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { initSupabaseClient } from '../src/config/supabase';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -23,6 +24,7 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+  const [supabaseReady, setSupabaseReady] = useState(false);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -30,12 +32,16 @@ export default function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    if (loaded) {
+    initSupabaseClient().finally(() => setSupabaseReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (loaded && supabaseReady) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [loaded, supabaseReady]);
 
-  if (!loaded) {
+  if (!loaded || !supabaseReady) {
     return null;
   }
 

@@ -1,7 +1,21 @@
 import 'react-native-url-polyfill/auto';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getDefaultSupabaseCredentials, loadSupabaseCredentials, SupabaseCredentials } from './supabaseConfig';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+let client: SupabaseClient = createClient(
+  getDefaultSupabaseCredentials().url,
+  getDefaultSupabaseCredentials().anonKey
+);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export function getSupabaseClient(): SupabaseClient {
+  return client;
+}
+
+export function configureSupabaseClient(credentials: SupabaseCredentials): void {
+  client = createClient(credentials.url, credentials.anonKey);
+}
+
+export async function initSupabaseClient(): Promise<void> {
+  const credentials = await loadSupabaseCredentials();
+  configureSupabaseClient(credentials);
+}
