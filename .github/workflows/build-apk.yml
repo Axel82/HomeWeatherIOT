@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v5
 
@@ -19,30 +19,36 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '18.x'
+          node-version: '20.19.4'
           package-manager-cache: false
 
-      # 3. Setup Java
+      # 3. Check Node.js version
+      - name: Check Node.js
+        run: |
+          node --version
+          npm --version
+
+      # 4. Setup Java
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      # 4. Install dependencies
+      # 5. Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # 5. Prebuild
+      # 6. Generate native Android project
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean
 
-      # 6. Build APK
+      # 7. Build APK
       - name: Build APK
         working-directory: ./android
         run: ./gradlew assembleRelease
 
-      # 7. Upload APK
+      # 8. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
