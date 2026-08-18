@@ -18,7 +18,7 @@ jobs:
         uses: actions/setup-node@v4.0.2  # Version stable et non dépréciée
         with:
           node-version: 18.x
-          cache: npm
+          cache: false  # Désactive le cache pour éviter l'erreur 400
 
       - name: Setup Java
         uses: actions/setup-java@v5  # Migration vers v5 (recommandé)
