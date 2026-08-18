@@ -11,33 +11,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout (version stable)
       - name: Checkout repository
-        uses: actions/checkout@v4.1.1  # Version stable et non dépréciée
+        uses: actions/checkout@v4.1.1
 
+      # 2. Setup Node.js 18.x (sans cache ou avec cache valide)
       - name: Setup Node.js
-        uses: actions/setup-node@v4.0.2  # Version stable et non dépréciée
+        uses: actions/setup-node@v4.0.2
         with:
           node-version: 18.x
-          cache: false  # Désactive le cache pour éviter l'erreur 400
+          # Option 1 : Désactiver le cache (supprimer la ligne)
+          # Option 2 : Activer le cache pour npm (valeur par défaut)
+          cache: 'npm'
 
+      # 3. Setup Java (version v5)
       - name: Setup Java
-        uses: actions/setup-java@v5  # Migration vers v5 (recommandé)
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
+      # 4. Install dependencies
       - name: Install dependencies
         run: npm ci
 
+      # 5. Prebuild
       - name: Generate native Android project (Prebuild)
         run: npx expo prebuild --platform android --clean
 
+      # 6. Build APK
       - name: Build APK (Gradle)
         working-directory: ./android
         run: ./gradlew assembleRelease
 
+      # 7. Upload APK
       - name: Upload APK
-        uses: actions/upload-artifact@v4.3.0  # Version stable et non dépréciée
+        uses: actions/upload-artifact@v4.3.0
         with:
           name: homeweather-apk
           path: android/app/build/outputs/apk/release/app-release.apk
