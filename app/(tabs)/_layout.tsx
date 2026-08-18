@@ -11,6 +11,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: 'rgba(255,255,255,0.1)',
@@ -28,6 +29,20 @@ export default function TabLayout() {
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
+          headerRight: () => (
+            <Link href="/settings" asChild>
+              <Pressable style={{ marginRight: 15 }}>
+                {({ pressed }) => (
+                  <Ionicons
+                    name="settings-outline"
+                    size={24}
+                    color={colors.textPrimary}
+                    style={{ opacity: pressed ? 0.5 : 1 }}
+                  />
+                )}
+              </Pressable>
+            </Link>
+          ),
         }}
       />
       <Tabs.Screen

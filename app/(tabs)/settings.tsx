@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { configureSupabaseClient } from '../../src/config/supabase';
 import {
   clearSupabaseCredentials,
@@ -24,6 +25,7 @@ export default function SettingsScreen() {
   const [url, setUrl] = useState('');
   const [anonKey, setAnonKey] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isAnonKeyVisible, setIsAnonKeyVisible] = useState(false);
   const fetchData = useWeatherStore((state) => state.fetchData);
 
   useEffect(() => {
@@ -97,16 +99,28 @@ export default function SettingsScreen() {
           />
 
           <Text style={styles.label}>Clé Anonyme (Anon Key)</Text>
-          <TextInput
-            style={styles.input}
-            value={anonKey}
-            onChangeText={setAnonKey}
-            placeholder="sb_publishable_..."
-            placeholderTextColor={colors.textSecondary}
-            autoCapitalize="none"
-            autoCorrect={false}
-            secureTextEntry
-          />
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, styles.inputWithIcon]}
+              value={anonKey}
+              onChangeText={setAnonKey}
+              placeholder="sb_publishable_..."
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry={!isAnonKeyVisible}
+            />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setIsAnonKeyVisible((prev) => !prev)}
+            >
+              <Ionicons
+                name={isAnonKeyVisible ? 'eye-off' : 'eye'}
+                size={20}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={[styles.button, styles.saveButton, isSaving && styles.buttonDisabled]}
@@ -170,6 +184,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.2)',
     padding: 10,
     borderRadius: 6,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputWithIcon: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  eyeButton: {
+    marginLeft: 8,
+    marginBottom: 16,
+    padding: 6,
   },
   button: {
     paddingVertical: 12,
