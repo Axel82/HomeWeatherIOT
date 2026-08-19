@@ -1,6 +1,5 @@
 import React from 'react';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors } from '../../src/theme/colors';
@@ -29,20 +28,6 @@ export default function TabLayout() {
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
-          headerRight: () => (
-            <Link href="/settings" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <Ionicons
-                    name="settings-outline"
-                    size={24}
-                    color={colors.textPrimary}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
         }}
       />
       <Tabs.Screen
