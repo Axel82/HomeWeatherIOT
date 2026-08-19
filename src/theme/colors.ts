@@ -11,4 +11,7 @@ export const colors = {
   light: '#FFD166',
   error: '#FF4C4C',
   success: '#4BB543',
+  storeOpen: '#4BB543',
+  storeClose: '#FF4C4C',
+  storeMy: '#00B4D8',
 };
