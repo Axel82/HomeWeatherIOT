@@ -7,7 +7,7 @@ interface VoletsState {
   storeIds: string[];
   statuses: Record<string, StoreStatus>;
   isLoading: boolean;
-  error: string | null;
+  statusError: string | null;
   loadVolets: () => Promise<void>;
   addVolet: (storeId: string) => Promise<void>;
   removeVolet: (storeId: string) => Promise<void>;
@@ -18,16 +18,17 @@ export const useVoletsStore = create<VoletsState>((set, get) => ({
   storeIds: [],
   statuses: {},
   isLoading: false,
-  error: null,
+  statusError: null,
 
   loadVolets: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, statusError: null });
+    const storeIds = await getStoredVoletIds();
+    set({ storeIds });
     try {
-      const storeIds = await getStoredVoletIds();
       const statuses = await StoreStatusRepository.getLatestStatuses(storeIds);
-      set({ storeIds, statuses, isLoading: false });
+      set({ statuses, isLoading: false });
     } catch (error: any) {
-      set({ error: error.message || 'Une erreur est survenue.', isLoading: false });
+      set({ statusError: error.message || 'Statut distant indisponible.', isLoading: false });
     }
   },
 
@@ -50,22 +51,17 @@ export const useVoletsStore = create<VoletsState>((set, get) => ({
   },
 
   sendCommand: async (storeId: string, status: StoreStatusValue) => {
-    try {
-      await StoreStatusRepository.sendStatus(storeId, status);
-      set({
-        statuses: {
-          ...get().statuses,
-          [storeId]: {
-            id: get().statuses[storeId]?.id ?? '',
-            store_id: storeId,
-            status,
-            timestamp: new Date().toISOString(),
-          },
+    await StoreStatusRepository.sendStatus(storeId, status);
+    set({
+      statuses: {
+        ...get().statuses,
+        [storeId]: {
+          id: get().statuses[storeId]?.id ?? '',
+          store_id: storeId,
+          status,
+          timestamp: new Date().toISOString(),
         },
-      });
-    } catch (error: any) {
-      set({ error: error.message || "Impossible d'envoyer la commande." });
-      throw error;
-    }
+      },
+    });
   },
 }));

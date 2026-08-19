@@ -24,7 +24,7 @@ const ACTIONS: { status: StoreStatusValue; label: string; icon: keyof typeof Ion
 ];
 
 export default function VoletsScreen() {
-  const { storeIds, statuses, isLoading, error, loadVolets, addVolet, removeVolet, sendCommand } =
+  const { storeIds, statuses, isLoading, statusError, loadVolets, addVolet, removeVolet, sendCommand } =
     useVoletsStore();
   const [newStoreId, setNewStoreId] = useState('');
   const [sendingKey, setSendingKey] = useState<string | null>(null);
@@ -82,12 +82,6 @@ export default function VoletsScreen() {
           </TouchableOpacity>
         </View>
 
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
-
         {isLoading && storeIds.length === 0 ? (
           <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
         ) : (
@@ -107,9 +101,18 @@ export default function VoletsScreen() {
                   <View style={styles.cardHeader}>
                     <View style={styles.cardHeaderText}>
                       <Text style={styles.cardTitle}>{storeId}</Text>
-                      <Text style={styles.cardStatus}>
-                        {status ? `${status.status} · ${formatDateTime(status.timestamp)}` : 'Aucune donnée'}
-                      </Text>
+                      {status ? (
+                        <Text style={styles.cardStatus}>
+                          {`${status.status} · ${formatDateTime(status.timestamp)}`}
+                        </Text>
+                      ) : statusError ? (
+                        <View style={styles.statusErrorRow}>
+                          <Ionicons name="warning-outline" size={14} color={colors.error} />
+                          <Text style={styles.statusErrorText}>Statut distant indisponible</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.cardStatus}>Aucune donnée</Text>
+                      )}
                     </View>
                     <TouchableOpacity onPress={() => handleRemove(storeId)}>
                       <Ionicons name="trash-outline" size={20} color={colors.error} />
@@ -237,17 +240,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
-  errorContainer: {
-    backgroundColor: 'rgba(255, 76, 76, 0.1)',
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.error,
-    marginBottom: 16,
+  statusErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  errorText: {
+  statusErrorText: {
     color: colors.error,
-    textAlign: 'center',
+    fontSize: 13,
+    marginLeft: 4,
   },
   emptyText: {
     color: colors.textSecondary,
