@@ -12,7 +12,7 @@ export class VoletsRepository {
 
     if (error) {
       console.error('Erreur lors de la récupération des volets:', error.message);
-      throw new Error('Impossible de charger la liste des volets.');
+      throw new Error(`Impossible de charger la liste des volets : ${error.message}`);
     }
 
     return (data as { store_id: string }[]).map((row) => row.store_id);
@@ -28,7 +28,9 @@ export class VoletsRepository {
 
     if (error) {
       console.error('Erreur lors de la création du volet:', error.message);
-      throw new Error(error.code === '23505' ? 'Ce volet existe déjà.' : 'Impossible de créer le volet.');
+      throw new Error(
+        error.code === '23505' ? 'Ce volet existe déjà.' : `Impossible de créer le volet : ${error.message}`
+      );
     }
   }
 
@@ -43,7 +45,7 @@ export class VoletsRepository {
 
     if (error) {
       console.error('Erreur lors de la suppression du volet:', error.message);
-      throw new Error('Impossible de supprimer le volet.');
+      throw new Error(`Impossible de supprimer le volet : ${error.message}`);
     }
   }
 }
