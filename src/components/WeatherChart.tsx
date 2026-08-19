@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { colors } from '../theme/colors';
+import { WeatherMetricType } from './WeatherCard';
 
 interface ChartDataPoint {
   label: string;
@@ -11,14 +12,20 @@ interface ChartDataPoint {
 interface WeatherChartProps {
   title: string;
   data: ChartDataPoint[];
-  type: 'temperature' | 'humidity';
+  type: WeatherMetricType;
 }
 
 const screenWidth = Dimensions.get('window').width;
 
+const CHART_CONFIG: Record<WeatherMetricType, { color: string; rgb: string; unitSuffix: string }> = {
+  temperature: { color: colors.temperature, rgb: '255,107,107', unitSuffix: '°' },
+  humidity: { color: colors.humidity, rgb: '78,205,196', unitSuffix: '%' },
+  pressure: { color: colors.pressure, rgb: '155,140,255', unitSuffix: 'hPa' },
+  light: { color: colors.light, rgb: '255,209,102', unitSuffix: 'lx' },
+};
+
 export const WeatherChart: React.FC<WeatherChartProps> = ({ title, data, type }) => {
-  const isTemp = type === 'temperature';
-  const mainColor = isTemp ? colors.temperature : colors.humidity;
+  const { color: mainColor, rgb, unitSuffix } = CHART_CONFIG[type];
 
   if (!data || data.length === 0) {
     return (
@@ -50,13 +57,13 @@ export const WeatherChart: React.FC<WeatherChartProps> = ({ title, data, type })
         }}
         width={screenWidth - 40} // margins
         height={220}
-        yAxisSuffix={isTemp ? "°" : "%"}
+        yAxisSuffix={unitSuffix}
         chartConfig={{
           backgroundColor: colors.surface,
           backgroundGradientFrom: colors.surface,
           backgroundGradientTo: colors.surface,
           decimalPlaces: 1,
-          color: (opacity = 1) => `rgba(${isTemp ? '255,107,107' : '78,205,196'}, ${opacity})`,
+          color: (opacity = 1) => `rgba(${rgb}, ${opacity})`,
           labelColor: (opacity = 1) => `rgba(160,160,160, ${opacity})`,
           style: {
             borderRadius: 16,

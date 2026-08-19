@@ -7,6 +7,8 @@ export const colors = {
   textSecondary: '#A0A0A0',
   temperature: '#FF6B6B',
   humidity: '#4ECDC4',
+  pressure: '#9B8CFF',
+  light: '#FFD166',
   error: '#FF4C4C',
   success: '#4BB543',
 };

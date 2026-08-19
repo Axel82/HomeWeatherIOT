@@ -3,18 +3,23 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
+export type WeatherMetricType = 'temperature' | 'humidity' | 'pressure' | 'light';
+
 interface WeatherCardProps {
-  type: 'temperature' | 'humidity';
+  type: WeatherMetricType;
   value: number | null;
   lastUpdate: string | null;
 }
 
+const CARD_CONFIG: Record<WeatherMetricType, { icon: keyof typeof Ionicons.glyphMap; title: string; unit: string; color: string }> = {
+  temperature: { icon: 'thermometer-outline', title: 'Température', unit: '°C', color: colors.temperature },
+  humidity: { icon: 'water-outline', title: 'Humidité', unit: '%', color: colors.humidity },
+  pressure: { icon: 'speedometer-outline', title: 'Pression', unit: 'hPa', color: colors.pressure },
+  light: { icon: 'sunny-outline', title: 'Luminosité', unit: 'lx', color: colors.light },
+};
+
 export const WeatherCard: React.FC<WeatherCardProps> = ({ type, value, lastUpdate }) => {
-  const isTemp = type === 'temperature';
-  const iconName = isTemp ? 'thermometer-outline' : 'water-outline';
-  const title = isTemp ? 'Température' : 'Humidité';
-  const unit = isTemp ? '°C' : '%';
-  const mainColor = isTemp ? colors.temperature : colors.humidity;
+  const { icon: iconName, title, unit, color: mainColor } = CARD_CONFIG[type];
 
   return (
     <View style={styles.card}>

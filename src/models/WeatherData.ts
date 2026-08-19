@@ -5,4 +5,6 @@ export interface WeatherData {
   hour: string | null;
   temperature: number | null;
   humidity: number | null;
+  pressure: number | null;
+  light: number | null;
 }

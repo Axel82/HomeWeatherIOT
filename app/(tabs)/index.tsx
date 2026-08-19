@@ -28,6 +28,12 @@ export default function DashboardScreen() {
   const humidityChartData = chartDataRaw
     .filter(d => d.humidity !== null)
     .map(d => ({ label: extractTimeForChart(d.created_at), value: d.humidity as number }));
+  const pressureChartData = chartDataRaw
+    .filter(d => d.pressure !== null)
+    .map(d => ({ label: extractTimeForChart(d.created_at), value: d.pressure as number }));
+  const lightChartData = chartDataRaw
+    .filter(d => d.light !== null)
+    .map(d => ({ label: extractTimeForChart(d.created_at), value: d.light as number }));
 
   return (
     <ScrollView 
@@ -50,23 +56,46 @@ export default function DashboardScreen() {
               value={latestData?.temperature ?? null} 
               lastUpdate={lastUpdate} 
             />
-            <WeatherCard 
-              type="humidity" 
-              value={latestData?.humidity ?? null} 
-              lastUpdate={lastUpdate} 
+            <WeatherCard
+              type="humidity"
+              value={latestData?.humidity ?? null}
+              lastUpdate={lastUpdate}
+            />
+          </View>
+
+          <View style={styles.cardsRow}>
+            <WeatherCard
+              type="pressure"
+              value={latestData?.pressure ?? null}
+              lastUpdate={lastUpdate}
+            />
+            <WeatherCard
+              type="light"
+              value={latestData?.light ?? null}
+              lastUpdate={lastUpdate}
             />
           </View>
 
           <View style={styles.chartsContainer}>
-            <WeatherChart 
-              title="Évolution Température" 
-              data={temperatureChartData} 
-              type="temperature" 
+            <WeatherChart
+              title="Évolution Température"
+              data={temperatureChartData}
+              type="temperature"
             />
-            <WeatherChart 
-              title="Évolution Humidité" 
-              data={humidityChartData} 
-              type="humidity" 
+            <WeatherChart
+              title="Évolution Humidité"
+              data={humidityChartData}
+              type="humidity"
+            />
+            <WeatherChart
+              title="Évolution Pression"
+              data={pressureChartData}
+              type="pressure"
+            />
+            <WeatherChart
+              title="Évolution Luminosité"
+              data={lightChartData}
+              type="light"
             />
           </View>
         </>
