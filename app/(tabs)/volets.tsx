@@ -28,6 +28,7 @@ export default function VoletsScreen() {
     useVoletsStore();
   const [newStoreId, setNewStoreId] = useState('');
   const [sendingKey, setSendingKey] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
     loadVolets();
@@ -38,14 +39,31 @@ export default function VoletsScreen() {
       Alert.alert('Nom manquant', 'Indiquez un nom pour le volet.');
       return;
     }
-    await addVolet(newStoreId);
-    setNewStoreId('');
+    setIsAdding(true);
+    try {
+      await addVolet(newStoreId);
+      setNewStoreId('');
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Impossible de créer le volet.');
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   const handleRemove = (storeId: string) => {
     Alert.alert('Supprimer', `Supprimer le volet "${storeId}" ?`, [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: () => removeVolet(storeId) },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await removeVolet(storeId);
+          } catch (e: any) {
+            Alert.alert('Erreur', e.message || 'Impossible de supprimer le volet.');
+          }
+        },
+      },
     ]);
   };
 
@@ -77,8 +95,12 @@ export default function VoletsScreen() {
             autoCorrect={false}
             onSubmitEditing={handleAdd}
           />
-          <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-            <Ionicons name="add" size={24} color={colors.textPrimary} />
+          <TouchableOpacity style={styles.addButton} onPress={handleAdd} disabled={isAdding}>
+            {isAdding ? (
+              <ActivityIndicator size="small" color={colors.textPrimary} />
+            ) : (
+              <Ionicons name="add" size={24} color={colors.textPrimary} />
+            )}
           </TouchableOpacity>
         </View>
 

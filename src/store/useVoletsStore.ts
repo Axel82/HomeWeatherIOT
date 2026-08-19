@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { StoreStatus, StoreStatusValue } from '../models/Volet';
-import { getStoredVoletIds, persistVoletIds } from '../services/VoletsStorage';
+import { VoletsRepository } from '../services/VoletsRepository';
 import { StoreStatusRepository } from '../services/StoreStatusRepository';
 
 interface VoletsState {
@@ -22,8 +22,15 @@ export const useVoletsStore = create<VoletsState>((set, get) => ({
 
   loadVolets: async () => {
     set({ isLoading: true, statusError: null });
-    const storeIds = await getStoredVoletIds();
-    set({ storeIds });
+    let storeIds: string[];
+    try {
+      storeIds = await VoletsRepository.getAll();
+      set({ storeIds });
+    } catch (error: any) {
+      set({ statusError: error.message || 'Impossible de charger les volets.', isLoading: false });
+      return;
+    }
+
     try {
       const statuses = await StoreStatusRepository.getLatestStatuses(storeIds);
       set({ statuses, isLoading: false });
@@ -37,17 +44,15 @@ export const useVoletsStore = create<VoletsState>((set, get) => ({
     if (!trimmed || get().storeIds.includes(trimmed)) {
       return;
     }
-    const storeIds = [...get().storeIds, trimmed];
-    await persistVoletIds(storeIds);
-    set({ storeIds });
+    await VoletsRepository.create(trimmed);
+    set({ storeIds: [...get().storeIds, trimmed] });
   },
 
   removeVolet: async (storeId: string) => {
-    const storeIds = get().storeIds.filter((id) => id !== storeId);
-    await persistVoletIds(storeIds);
+    await VoletsRepository.remove(storeId);
     const statuses = { ...get().statuses };
     delete statuses[storeId];
-    set({ storeIds, statuses });
+    set({ storeIds: get().storeIds.filter((id) => id !== storeId), statuses });
   },
 
   sendCommand: async (storeId: string, status: StoreStatusValue) => {

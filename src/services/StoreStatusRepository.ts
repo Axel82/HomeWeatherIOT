@@ -12,7 +12,7 @@ export class StoreStatusRepository {
 
     if (error) {
       console.error("Erreur lors de l'envoi de la commande du volet:", error.message);
-      throw new Error("Impossible d'envoyer la commande au volet.");
+      throw new Error(`Impossible d'envoyer la commande au volet : ${error.message}`);
     }
   }
 
@@ -32,7 +32,7 @@ export class StoreStatusRepository {
 
     if (error) {
       console.error('Erreur lors de la récupération des statuts des volets:', error.message);
-      throw new Error('Impossible de charger les statuts des volets.');
+      throw new Error(`Impossible de charger les statuts des volets : ${error.message}`);
     }
 
     const latestByStoreId: Record<string, StoreStatus> = {};
