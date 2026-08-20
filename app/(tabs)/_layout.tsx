@@ -31,17 +31,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="history"
-        options={{
-          title: 'Historique',
-          tabBarIcon: ({ color }) => <Ionicons name="time" size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="volets"
         options={{
           title: 'Volets',
           tabBarIcon: ({ color }) => <Ionicons name="reorder-four" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="climatisation"
+        options={{
+          title: 'Climatisation',
+          tabBarIcon: ({ color }) => <Ionicons name="snow" size={24} color={color} />,
         }}
       />
       <Tabs.Screen

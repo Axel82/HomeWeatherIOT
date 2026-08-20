@@ -20,6 +20,7 @@ import {
 } from '../../src/config/supabaseConfig';
 import { useWeatherStore } from '../../src/store/useWeatherStore';
 import { colors } from '../../src/theme/colors';
+import { APP_VERSION } from '../../src/version';
 
 export default function SettingsScreen() {
   const [url, setUrl] = useState('');
@@ -142,6 +143,8 @@ export default function SettingsScreen() {
         <Text style={styles.note}>
           Ne partagez jamais ces informations ou votre Service Role Key publiquement.
         </Text>
+
+        <Text style={styles.version}>Version {APP_VERSION}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -224,5 +227,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  version: {
+    marginTop: 12,
+    marginBottom: 20,
+    color: colors.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

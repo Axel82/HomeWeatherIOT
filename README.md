@@ -1,20 +1,36 @@
 # HomeWeather App
 
-Application mobile Android (React Native / Expo) pour visualiser les données d'une station météo domestique depuis Supabase.
+Application mobile Android (React Native / Expo) pour visualiser les données d'une station météo domestique et piloter des volets connectés depuis Supabase.
+
+## Fonctionnalités
+- **Dashboard** : dernières mesures de température et d'humidité.
+- **Volets** : ajout, suppression et pilotage (Open / Close / My) des volets enregistrés.
+- **Climatisation** : écran à venir.
+- **Paramètres** : configuration de la connexion Supabase.
 
 ## Prérequis
 - Node.js (v18+)
-- Compte Supabase avec une table `WeatherData` (colonnes: `id`, `created_at`, `date`, `hour`, `temperature`, `humidity`)
+- Compte Supabase avec :
+  - une table `WeatherData` (colonnes: `id`, `created_at`, `date`, `hour`, `temperature`, `humidity`)
+  - une table `Volets` (colonnes: `store_id`, `created_at`)
 - Compte Expo (optionnel, pour build sur EAS)
 
 ## Configuration Supabase
-1. Créez un fichier `.env` à la racine du projet (`HomeWeather/.env`).
-2. Ajoutez vos clés :
-```
-EXPO_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=votre-cle-anonyme
-```
-*Note : Ne placez jamais de clé `service_role` dans ce fichier.*
+La configuration peut être définie de deux façons :
+
+1. **Via `.env` (valeurs par défaut)**
+   - Créez un fichier `.env` à la racine du projet (`HomeWeather/.env`).
+   - Ajoutez vos clés :
+   ```
+   EXPO_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=votre-cle-anonyme
+   ```
+   *Note : Ne placez jamais de clé `service_role` dans ce fichier.*
+
+2. **Via l'onglet Paramètres de l'application**
+   - Saisissez l'URL et la clé anonyme Supabase directement dans l'écran **Paramètres**.
+   - Ces identifiants sont sauvegardés sur l'appareil et remplacent les valeurs du `.env`.
+   - Le bouton *Réinitialiser* efface la configuration enregistrée et restaure les valeurs par défaut du `.env`.
 
 ## Lancement en Développement
 1. Installez les dépendances :
