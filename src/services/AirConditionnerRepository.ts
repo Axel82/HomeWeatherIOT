@@ -1,0 +1,44 @@
+import { getSupabaseClient } from '../config/supabase';
+import { AirConditionnerCommand, AirConditionnerState } from '../models/AirConditionner';
+
+export class AirConditionnerRepository {
+  /**
+   * Récupère l'état courant de la climatisation (ligne unique de la table).
+   */
+  static async getState(): Promise<AirConditionnerState | null> {
+    const { data, error } = await getSupabaseClient()
+      .from('AirConditionner')
+      .select('*')
+      .order('id', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Erreur lors de la récupération de l'état de la climatisation:", error.message);
+      throw new Error(`Impossible de charger l'état de la climatisation : ${error.message}`);
+    }
+
+    return data as AirConditionnerState | null;
+  }
+
+  /**
+   * Envoie une nouvelle commande de climatisation.
+   * Met à jour la ligne existante si elle existe, sinon en crée une.
+   */
+  static async sendCommand(command: AirConditionnerCommand, existingId?: number): Promise<AirConditionnerState> {
+    const client = getSupabaseClient();
+
+    const query = existingId
+      ? client.from('AirConditionner').update(command).eq('id', existingId)
+      : client.from('AirConditionner').insert(command);
+
+    const { data, error } = await query.select('*').single();
+
+    if (error) {
+      console.error("Erreur lors de l'envoi de la commande de climatisation:", error.message);
+      throw new Error(`Impossible d'envoyer la commande de climatisation : ${error.message}`);
+    }
+
+    return data as AirConditionnerState;
+  }
+}
