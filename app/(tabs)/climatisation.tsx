@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../src/theme/colors';
 import { TemperatureDial } from '../../src/components/TemperatureDial';
@@ -13,6 +13,13 @@ export default function ClimatisationScreen() {
   const [power, setPower] = useState(false);
   const [targetTemp, setTargetTemp] = useState(21);
   const [fanSpeed, setFanSpeed] = useState<FanSpeed>(2);
+
+  const handleSend = () => {
+    Alert.alert(
+      'Instructions envoyées',
+      `Alimentation : ${power ? 'ON' : 'OFF'}\nConsigne : ${targetTemp}°C\nVentilateur : niveau ${fanSpeed}`
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -32,7 +39,7 @@ export default function ClimatisationScreen() {
             style={[styles.powerButton, { backgroundColor: !power ? '#3A3A3A' : 'rgba(255,255,255,0.06)' }]}
             onPress={() => setPower(false)}
           >
-            <Ionicons name="power-outline" size={20} color={colors.textPrimary} />
+            <Ionicons name="close-circle-outline" size={20} color={colors.textPrimary} />
             <Text style={styles.powerLabel}>OFF</Text>
           </TouchableOpacity>
         </View>
@@ -40,12 +47,12 @@ export default function ClimatisationScreen() {
 
       <View style={styles.card}>
         <Text style={styles.cardLabel}>Consigne de température</Text>
-        <TemperatureDial value={targetTemp} min={MIN_TEMP} max={MAX_TEMP} disabled={!power} onChange={setTargetTemp} />
+        <TemperatureDial value={targetTemp} min={MIN_TEMP} max={MAX_TEMP} onChange={setTargetTemp} />
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardLabel}>Vitesse du ventilateur</Text>
-        <View style={[styles.fanRow, !power && styles.disabled]}>
+        <View style={styles.fanRow}>
           {FAN_SPEEDS.map((speedLevel) => {
             const isActive = fanSpeed === speedLevel;
             return (
@@ -53,7 +60,6 @@ export default function ClimatisationScreen() {
                 key={speedLevel}
                 style={[styles.fanButton, { backgroundColor: isActive ? colors.primary : 'rgba(255,255,255,0.06)' }]}
                 onPress={() => setFanSpeed(speedLevel)}
-                disabled={!power}
               >
                 <View style={styles.fanBars}>
                   {FAN_SPEEDS.map((barLevel) => (
@@ -73,6 +79,11 @@ export default function ClimatisationScreen() {
           })}
         </View>
       </View>
+
+      <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
+        <Ionicons name="send" size={18} color={colors.textPrimary} />
+        <Text style={styles.sendLabel}>Envoyer</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -103,8 +114,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 14,
   },
-  disabled: {
-    opacity: 0.4,
+  sendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  sendLabel: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   powerRow: {
     flexDirection: 'row',
