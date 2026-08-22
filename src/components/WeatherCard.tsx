@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { MetricGaugeBar } from './MetricGaugeBar';
+import { getMetricGaugeInfo } from '../utils/metricStatus';
 
 export type WeatherMetricType = 'temperature' | 'humidity' | 'pressure' | 'light';
 
@@ -20,36 +22,45 @@ const CARD_CONFIG: Record<WeatherMetricType, { icon: keyof typeof Ionicons.glyph
 
 export const WeatherCard: React.FC<WeatherCardProps> = ({ type, value, lastUpdate }) => {
   const { icon: iconName, title, unit, color: mainColor } = CARD_CONFIG[type];
+  const { fraction, color: gaugeColor } = getMetricGaugeInfo(type, value);
 
   return (
     <View style={styles.card}>
-      <View style={styles.header}>
-        <Ionicons name={iconName} size={24} color={mainColor} />
-        <Text style={styles.title}>{title}</Text>
-      </View>
-      
-      <View style={styles.content}>
-        {value !== null ? (
-          <Text style={styles.value}>
-            {value.toFixed(1)} <Text style={styles.unit}>{unit}</Text>
-          </Text>
-        ) : (
-          <Text style={styles.value}>--</Text>
-        )}
-      </View>
+      <MetricGaugeBar fraction={fraction} color={gaugeColor} height={GAUGE_HEIGHT} />
 
-      <View style={styles.footer}>
-        <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-        <Text style={styles.lastUpdate}>
-          {lastUpdate ? `Dernière mesure : ${lastUpdate}` : 'Aucune donnée'}
-        </Text>
+      <View style={styles.body}>
+        <View style={styles.header}>
+          <Ionicons name={iconName} size={24} color={mainColor} />
+          <Text style={styles.title}>{title}</Text>
+        </View>
+
+        <View style={styles.content}>
+          {value !== null ? (
+            <Text style={styles.value}>
+              {value.toFixed(1)} <Text style={styles.unit}>{unit}</Text>
+            </Text>
+          ) : (
+            <Text style={styles.value}>--</Text>
+          )}
+        </View>
+
+        <View style={styles.footer}>
+          <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+          <Text style={styles.lastUpdate}>
+            {lastUpdate ? `Dernière mesure : ${lastUpdate}` : 'Aucune donnée'}
+          </Text>
+        </View>
       </View>
     </View>
   );
 };
 
+const GAUGE_HEIGHT = 108;
+
 const styles = StyleSheet.create({
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 20,
@@ -61,6 +72,10 @@ const styles = StyleSheet.create({
     elevation: 5,
     flex: 1,
     marginHorizontal: 8,
+  },
+  body: {
+    flex: 1,
+    marginLeft: 16,
   },
   header: {
     flexDirection: 'row',

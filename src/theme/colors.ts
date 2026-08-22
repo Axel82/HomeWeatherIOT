@@ -14,4 +14,9 @@ export const colors = {
   storeOpen: '#4BB543',
   storeClose: '#FF4C4C',
   storeMy: '#00B4D8',
+  gaugeLow: '#fab219',
+  gaugeNormal: '#0ca30c',
+  gaugeHigh: '#ec835a',
+  gaugeVeryHigh: '#d03b3b',
+  gaugeTrack: 'rgba(255,255,255,0.08)',
 };
