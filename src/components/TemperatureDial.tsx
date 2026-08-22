@@ -42,7 +42,7 @@ function angleForValue(value: number, min: number, max: number) {
   return START_ANGLE + ((value - min) / (max - min)) * SWEEP_ANGLE;
 }
 
-export function TemperatureDial({ value, min, max, step = 0.5, disabled, onChange }: Props) {
+export function TemperatureDial({ value, min, max, step = 1, disabled, onChange }: Props) {
   const valueRef = useRef(value);
   valueRef.current = value;
 
@@ -85,7 +85,7 @@ export function TemperatureDial({ value, min, max, step = 0.5, disabled, onChang
   const knobPos = polarToCartesian(knobAngle);
   const arcPath = describeArc(START_ANGLE, knobAngle);
   const trackPath = describeArc(START_ANGLE, START_ANGLE + SWEEP_ANGLE);
-  const displayValue = value.toFixed(1).replace(/\.0$/, '');
+  const displayValue = String(Math.round(value));
 
   return (
     <View style={[styles.wrapper, disabled && styles.disabled]} {...panResponder.panHandlers}>
@@ -104,7 +104,9 @@ export function TemperatureDial({ value, min, max, step = 0.5, disabled, onChang
       </Svg>
       <View style={styles.centerLabel} pointerEvents="none">
         <Text style={styles.valueText}>{displayValue}°</Text>
-        <Text style={styles.subLabel}>Consigne</Text>
+        <Text style={styles.subLabel} numberOfLines={1}>
+          Consigne
+        </Text>
       </View>
     </View>
   );
@@ -123,7 +125,12 @@ const styles = StyleSheet.create({
   },
   centerLabel: {
     position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   valueText: {
     color: colors.textPrimary,

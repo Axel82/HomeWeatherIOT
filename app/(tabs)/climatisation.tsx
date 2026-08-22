@@ -26,7 +26,7 @@ export default function ClimatisationScreen() {
       return;
     }
     setPower(state.PowerStatus);
-    setTargetTemp(state.TemperatureCommand);
+    setTargetTemp(Math.round(state.TemperatureCommand));
     setFanSpeed(state.FanSpeed as FanSpeed);
   }, [state]);
 
