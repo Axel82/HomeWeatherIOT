@@ -42,6 +42,8 @@ export const WeatherChart: React.FC<WeatherChartProps> = ({ title, data, type })
   // si on a beaucoup de points (ex: plus de 10 points on affiche 1 sur 3 ou seulement la première et la dernière)
   const labels = data.map(d => d.label);
   const values = data.map(d => d.value);
+  const maxValue = Math.max(...values);
+  const yAxisMax = maxValue > 0 ? maxValue * 1.1 : 1;
 
   return (
     <View style={styles.container}>
@@ -59,6 +61,7 @@ export const WeatherChart: React.FC<WeatherChartProps> = ({ title, data, type })
         height={220}
         yAxisSuffix={unitSuffix}
         fromZero
+        fromNumber={yAxisMax}
         formatYLabel={(yLabel) => Math.round(Number(yLabel)).toString()}
         chartConfig={{
           backgroundColor: colors.surface,
