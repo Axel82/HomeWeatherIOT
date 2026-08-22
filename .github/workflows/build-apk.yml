@@ -46,6 +46,8 @@ jobs:
       # 7. Build APK
       - name: Build APK
         working-directory: ./android
+        env:
+          ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
         run: ./gradlew assembleRelease
 
       # 8. Upload APK
