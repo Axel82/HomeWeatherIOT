@@ -26,41 +26,42 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ type, value, lastUpdat
 
   return (
     <View style={styles.card}>
-      <MetricGaugeBar fraction={fraction} color={gaugeColor} height={GAUGE_HEIGHT} />
+      <View style={styles.header}>
+        <Ionicons name={iconName} size={20} color={mainColor} />
+        <Text style={styles.title}>{title}</Text>
+      </View>
 
-      <View style={styles.body}>
-        <View style={styles.header}>
-          <Ionicons name={iconName} size={24} color={mainColor} />
-          <Text style={styles.title}>{title}</Text>
-        </View>
-
-        <View style={styles.content}>
+      <View style={styles.middleRow}>
+        <View style={styles.valueRow}>
           {value !== null ? (
-            <Text style={styles.value}>
-              {value.toFixed(1)} <Text style={styles.unit}>{unit}</Text>
-            </Text>
+            <>
+              <Text style={styles.value} numberOfLines={1}>{value.toFixed(1)}</Text>
+              <Text style={styles.unit} numberOfLines={1}>{unit}</Text>
+            </>
           ) : (
-            <Text style={styles.value}>--</Text>
+            <Text style={styles.value} numberOfLines={1}>--</Text>
           )}
         </View>
 
-        <View style={styles.footer}>
-          <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-          <Text style={styles.lastUpdate}>
-            {lastUpdate ? `Dernière mesure : ${lastUpdate}` : 'Aucune donnée'}
-          </Text>
-        </View>
+        <MetricGaugeBar fraction={fraction} color={gaugeColor} height={GAUGE_HEIGHT} />
+      </View>
+
+      <View style={styles.footer}>
+        <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+        <Text style={styles.lastUpdate} numberOfLines={1}>
+          {lastUpdate ? `Dernière mesure : ${lastUpdate}` : 'Aucune donnée'}
+        </Text>
       </View>
     </View>
   );
 };
 
-const GAUGE_HEIGHT = 108;
+const GAUGE_HEIGHT = 90;
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
     backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 20,
@@ -71,16 +72,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     flex: 1,
+    minHeight: 220,
     marginHorizontal: 8,
-  },
-  body: {
-    flex: 1,
-    marginLeft: 16,
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
   },
   title: {
     color: colors.textSecondary,
@@ -88,10 +86,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-  content: {
+  middleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 10,
+    justifyContent: 'space-between',
+  },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    flexShrink: 1,
   },
   value: {
     color: colors.textPrimary,
@@ -99,14 +102,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   unit: {
-    fontSize: 24,
+    fontSize: 15,
+    lineHeight: 18,
     color: colors.textSecondary,
-    fontWeight: 'normal',
+    fontWeight: '600',
+    marginLeft: 4,
+    marginBottom: 3,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 15,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
     paddingTop: 10,
