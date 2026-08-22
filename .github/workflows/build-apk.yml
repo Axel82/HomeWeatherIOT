@@ -39,20 +39,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 6. Generate native Android project
+      # 6. Read app version
+      - name: Read app version
+        id: version
+        run: |
+          VERSION=$(grep -oP "(?<=APP_VERSION = ')[^']+" src/version.ts)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # 7. Generate native Android project
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean
 
-      # 7. Build APK
+      # 8. Build APK
       - name: Build APK
         working-directory: ./android
         env:
           ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
         run: ./gradlew assembleRelease
 
-      # 8. Upload APK
+      # 9. Rename APK
+      - name: Rename APK
+        run: |
+          mv android/app/build/outputs/apk/release/app-release.apk \
+             android/app/build/outputs/apk/release/homeweather_v${{ steps.version.outputs.version }}.apk
+
+      # 10. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: homeweather-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: homeweather_v${{ steps.version.outputs.version }}
+          path: android/app/build/outputs/apk/release/homeweather_v${{ steps.version.outputs.version }}.apk
