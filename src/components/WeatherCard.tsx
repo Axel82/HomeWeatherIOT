@@ -48,7 +48,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ type, value, lastUpdat
 
       <View style={styles.footer}>
         <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-        <Text style={styles.lastUpdate} numberOfLines={1}>
+        <Text style={styles.lastUpdate}>
           {lastUpdate ? `Dernière mesure : ${lastUpdate}` : 'Aucune donnée'}
         </Text>
       </View>
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
     paddingTop: 10,
@@ -120,5 +120,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     marginLeft: 6,
+    flexShrink: 1,
   },
 });

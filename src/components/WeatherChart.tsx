@@ -58,11 +58,13 @@ export const WeatherChart: React.FC<WeatherChartProps> = ({ title, data, type })
         width={screenWidth - 40} // margins
         height={220}
         yAxisSuffix={unitSuffix}
+        fromZero
+        formatYLabel={(yLabel) => Math.round(Number(yLabel)).toString()}
         chartConfig={{
           backgroundColor: colors.surface,
           backgroundGradientFrom: colors.surface,
           backgroundGradientTo: colors.surface,
-          decimalPlaces: 1,
+          decimalPlaces: 0,
           color: (opacity = 1) => `rgba(${rgb}, ${opacity})`,
           labelColor: (opacity = 1) => `rgba(160,160,160, ${opacity})`,
           style: {
