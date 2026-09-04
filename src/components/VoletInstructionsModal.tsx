@@ -178,8 +178,8 @@ export const VoletInstructionsModal: React.FC<VoletInstructionsModalProps> = ({
                     <ActivityIndicator size="small" color={colors.textPrimary} />
                   ) : (
                     <>
-                      <Ionicons name="cloud-upload-outline" size={20} color={colors.textPrimary} style={styles.saveIcon} />
-                      <Text style={styles.saveButtonText}>Envoyer à la base de données</Text>
+                      <Ionicons name="checkmark-circle-outline" size={20} color={colors.textPrimary} style={styles.saveIcon} />
+                      <Text style={styles.saveButtonText}>Enregistrer</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -195,41 +195,43 @@ export const VoletInstructionsModal: React.FC<VoletInstructionsModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
   },
   modalWrapper: {
     width: '100%',
-    maxWidth: 500,
+    maxWidth: 560,
+    alignItems: 'center',
   },
   modalContent: {
+    width: '100%',
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    maxHeight: '90%',
+    borderRadius: 20,
+    padding: 24,
+    maxHeight: '92%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    paddingBottom: 14,
-    marginBottom: 16,
+    paddingBottom: 16,
+    marginBottom: 18,
   },
   modalTitleContainer: {
     flex: 1,
     marginRight: 10,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: colors.textPrimary,
   },
@@ -240,25 +242,25 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   closeButton: {
-    padding: 4,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   loadingContainer: {
-    paddingVertical: 40,
+    paddingVertical: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 14,
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 15,
   },
   scrollContainer: {
     flexGrow: 0,
   },
   scrollContent: {
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   instructionGroup: {
     marginBottom: 18,
@@ -276,22 +278,22 @@ const styles = StyleSheet.create({
   },
   textInput: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     color: colors.textPrimary,
     fontSize: 15,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   saveButton: {
     backgroundColor: colors.primary,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 15,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 12,
   },
   saveButtonDisabled: {
     opacity: 0.7,
