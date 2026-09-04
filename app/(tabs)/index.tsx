@@ -20,8 +20,8 @@ export default function DashboardScreen() {
   const latestData = data.length > 0 ? data[0] : null;
   const lastUpdate = latestData && latestData.created_at ? formatDateTime(latestData.created_at) : null;
 
-  // Préparation des données pour les graphiques (on prend les 10 dernières pour la lisibilité, inversées chronologiquement)
-  const chartDataRaw = data.slice(0, 10).reverse();
+  // Préparation des données pour les graphiques (on prend les 24 dernières, inversées chronologiquement)
+  const chartDataRaw = data.slice(0, 24).reverse();
   const temperatureChartData = chartDataRaw
     .filter(d => d.temperature !== null)
     .map(d => ({ label: extractTimeForChart(d.created_at), value: d.temperature as number }));

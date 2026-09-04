@@ -38,12 +38,14 @@ export const WeatherChart: React.FC<WeatherChartProps> = ({ title, data, type })
     );
   }
 
-  // Pour éviter des graphiques illisibles, on limite le nombre d'étiquettes affichées
-  // si on a beaucoup de points (ex: plus de 10 points on affiche 1 sur 3 ou seulement la première et la dernière)
-  const labels = data.map(d => d.label);
+  // Pour éviter des graphiques illisibles avec 24 points, on espace les étiquettes affichées
+  const step = Math.max(1, Math.ceil(data.length / 5));
+  const labels = data.map((d, index) => (index % step === 0 || index === data.length - 1 ? d.label : ''));
   const values = data.map(d => d.value);
   const maxValue = Math.max(...values);
-  const yAxisMax = maxValue > 0 ? maxValue * 1.1 : 1;
+  // Si toutes les valeurs sont très proches de 0 (ex: <= 1), Y max prend la valeur 10, sinon on applique la règle des +10%
+  const isNearZero = values.every(v => Math.abs(v) <= 1);
+  const yAxisMax = isNearZero ? 10 : (maxValue > 0 ? maxValue * 1.1 : 10);
 
   return (
     <View style={styles.container}>
