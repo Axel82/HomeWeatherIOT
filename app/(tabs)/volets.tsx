@@ -16,6 +16,7 @@ import { useVoletsStore } from '../../src/store/useVoletsStore';
 import { colors } from '../../src/theme/colors';
 import { StoreStatusValue } from '../../src/models/Volet';
 import { formatDateTime } from '../../src/utils/formatDate';
+import { VoletInstructionsModal } from '../../src/components/VoletInstructionsModal';
 
 const ACTIONS: { status: StoreStatusValue; label: string; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
   { status: 'OPEN', label: 'Open', icon: 'arrow-up-circle-outline', color: colors.storeOpen },
@@ -29,6 +30,7 @@ export default function VoletsScreen() {
   const [newStoreId, setNewStoreId] = useState('');
   const [sendingKey, setSendingKey] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [selectedStoreForInstructions, setSelectedStoreForInstructions] = useState<string | null>(null);
 
   useEffect(() => {
     loadVolets();
@@ -136,9 +138,22 @@ export default function VoletsScreen() {
                         <Text style={styles.cardStatus}>Aucune donnée</Text>
                       )}
                     </View>
-                    <TouchableOpacity onPress={() => handleRemove(storeId)}>
-                      <Ionicons name="trash-outline" size={20} color={colors.error} />
-                    </TouchableOpacity>
+                    <View style={styles.cardHeaderButtons}>
+                      <TouchableOpacity
+                        style={styles.headerIconButton}
+                        onPress={() => setSelectedStoreForInstructions(storeId)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.headerIconButton}
+                        onPress={() => handleRemove(storeId)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="trash-outline" size={20} color={colors.error} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
 
                   <View style={styles.actionsRow}>
@@ -173,10 +188,17 @@ export default function VoletsScreen() {
             }}
           />
         )}
+
+        <VoletInstructionsModal
+          visible={!!selectedStoreForInstructions}
+          storeId={selectedStoreForInstructions}
+          onClose={() => setSelectedStoreForInstructions(null)}
+        />
       </View>
     </KeyboardAvoidingView>
   );
 }
+
 
 const styles = StyleSheet.create({
   flex: {
@@ -233,6 +255,14 @@ const styles = StyleSheet.create({
   cardHeaderText: {
     flex: 1,
     marginRight: 10,
+  },
+  cardHeaderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerIconButton: {
+    padding: 4,
   },
   cardTitle: {
     color: colors.textPrimary,
