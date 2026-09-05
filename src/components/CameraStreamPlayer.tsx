@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -22,10 +22,10 @@ interface CameraStreamPlayerProps {
 }
 
 /**
- * Sous-composant dédié à la lecture vidéo directe (HLS, MP4, HTTP Live, RTSP)
- * avec gestion de statut de lecture, buffering et contrôles intégrés.
+ * Lecteur vidéo natif expo-video pour flux HTTP/HTTPS (HLS .m3u8, MP4, HTTP Live stream).
+ * Ne doit être appelé qu'avec une URL http:// ou https:// valide.
  */
-const EmbeddedVideoPlayer: React.FC<{
+const SafeHttpVideoPlayer: React.FC<{
   url: string;
   autoPlay?: boolean;
   onFallbackToSnapshot?: () => void;
@@ -48,7 +48,6 @@ const EmbeddedVideoPlayer: React.FC<{
   useEffect(() => {
     if (!player) return;
 
-    // Synchronisation de l'état du lecteur
     const statusSub = player.addListener('statusChange', (s) => {
       if (s.status === 'error') {
         setStatus('error');
@@ -103,20 +102,20 @@ const EmbeddedVideoPlayer: React.FC<{
     return (
       <View style={styles.errorContainer}>
         <View style={styles.errorIconCircle}>
-          <Ionicons name="videocam-off-outline" size={32} color={colors.error} />
+          <Ionicons name="videocam-off-outline" size={30} color={colors.error} />
         </View>
-        <Text style={styles.errorTitle}>Flux vidéo non accessible</Text>
+        <Text style={styles.errorTitle}>Flux direct indisponible</Text>
         <Text style={styles.errorSubtitle}>{errorMessage}</Text>
 
         <View style={styles.errorActionsRow}>
           <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-            <Ionicons name="reload" size={16} color={colors.textPrimary} style={{ marginRight: 6 }} />
+            <Ionicons name="reload" size={15} color={colors.textPrimary} style={{ marginRight: 6 }} />
             <Text style={styles.retryButtonText}>Réessayer</Text>
           </TouchableOpacity>
 
           {hasSnapshotFallback && onFallbackToSnapshot && (
             <TouchableOpacity style={styles.fallbackButton} onPress={onFallbackToSnapshot}>
-              <Ionicons name="images-outline" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+              <Ionicons name="images-outline" size={15} color={colors.primary} style={{ marginRight: 6 }} />
               <Text style={styles.fallbackButtonText}>Voir Instantané Live</Text>
             </TouchableOpacity>
           )}
@@ -140,7 +139,7 @@ const EmbeddedVideoPlayer: React.FC<{
       {status === 'loading' && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Connexion au flux direct...</Text>
+          <Text style={styles.loadingText}>Connexion au flux...</Text>
         </View>
       )}
 
@@ -162,7 +161,7 @@ const EmbeddedVideoPlayer: React.FC<{
 
 /**
  * Sous-composant dédié au flux instantané direct (Live Snapshot Image Stream)
- * Rafraîchit les images JPEG en direct à haute fréquence de manière 100% embarquée.
+ * Rafraîchit les images JPEG en direct de manière 100% embarquée et légère.
  */
 const EmbeddedSnapshotStream: React.FC<{
   snapshotUrl: string;
@@ -172,7 +171,6 @@ const EmbeddedSnapshotStream: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [isLiveActive, setIsLiveActive] = useState(autoRefresh);
-  const [refreshInterval, setRefreshInterval] = useState(2000); // 2 secondes par défaut
   const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString());
 
   useEffect(() => {
@@ -180,10 +178,10 @@ const EmbeddedSnapshotStream: React.FC<{
 
     const interval = setInterval(() => {
       setSnapshotKey(Date.now());
-    }, refreshInterval);
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, [isLiveActive, snapshotUrl, refreshInterval]);
+  }, [isLiveActive, snapshotUrl]);
 
   const handleManualRefresh = () => {
     setHasError(false);
@@ -201,15 +199,15 @@ const EmbeddedSnapshotStream: React.FC<{
     return (
       <View style={styles.errorContainer}>
         <View style={styles.errorIconCircle}>
-          <Ionicons name="image-outline" size={32} color={colors.error} />
+          <Ionicons name="image-outline" size={30} color={colors.error} />
         </View>
-        <Text style={styles.errorTitle}>Instantané indisponible</Text>
+        <Text style={styles.errorTitle}>Instantané non disponible</Text>
         <Text style={styles.errorSubtitle}>
-          Impossible de récupérer l'image depuis l'adresse fournie.
+          Vérifiez l'URL de snapshot ou la connectivité réseau de la caméra.
         </Text>
         <TouchableOpacity style={styles.retryButton} onPress={handleManualRefresh}>
-          <Ionicons name="reload" size={16} color={colors.textPrimary} style={{ marginRight: 6 }} />
-          <Text style={styles.retryButtonText}>Actualiser l'image</Text>
+          <Ionicons name="reload" size={15} color={colors.textPrimary} style={{ marginRight: 6 }} />
+          <Text style={styles.retryButtonText}>Actualiser</Text>
         </TouchableOpacity>
       </View>
     );
@@ -274,24 +272,23 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
   onToggleFullScreen,
 }) => {
   const fullUrl = buildCameraRtspUrl(camera);
-  const hasSnapshot = !!camera.snapshot_url;
-  const hasVideoUrl = !!fullUrl;
+  const isHttpVideo = fullUrl.startsWith('http://') || fullUrl.startsWith('https://');
+  const isRtsp = fullUrl.startsWith('rtsp://');
+  const hasSnapshot = !!camera.snapshot_url && camera.snapshot_url.trim().length > 0;
 
-  // Choix initial du mode : vidéo si disponible, sinon snapshot
+  // Si c'est un flux HTTP(S), on peut tenter le lecteur vidéo, sinon si snapshot disponible on utilise le snapshot
   const [activeMode, setActiveMode] = useState<'video' | 'snapshot'>(
-    hasVideoUrl ? 'video' : 'snapshot'
+    isHttpVideo ? 'video' : 'snapshot'
   );
 
   const cleanDisplayUrl =
-    activeMode === 'video'
-      ? fullUrl
-        ? fullUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:••••@')
-        : 'Non configuré'
-      : camera.snapshot_url || 'Non configuré';
+    activeMode === 'video' && isHttpVideo
+      ? fullUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:••••@')
+      : camera.snapshot_url || (fullUrl ? fullUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:••••@') : 'Non configuré');
 
   return (
     <View style={[styles.container, isFullScreen && styles.fullScreenContainer]}>
-      {/* En-tête avec titre, indicateur direct et sélecteur de mode */}
+      {/* En-tête avec titre et indicateur direct */}
       <View style={styles.header}>
         <View style={styles.headerInfo}>
           <View style={styles.titleRow}>
@@ -308,7 +305,7 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
         </View>
 
         {/* Sélecteur de mode si les deux sont disponibles */}
-        {hasVideoUrl && hasSnapshot && (
+        {isHttpVideo && hasSnapshot && (
           <View style={styles.modeToggleGroup}>
             <TouchableOpacity
               style={[styles.modeButton, activeMode === 'video' && styles.modeButtonActive]}
@@ -316,7 +313,7 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
             >
               <Ionicons
                 name="videocam"
-                size={14}
+                size={13}
                 color={activeMode === 'video' ? '#FFFFFF' : colors.textSecondary}
               />
               <Text
@@ -335,7 +332,7 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
             >
               <Ionicons
                 name="image"
-                size={14}
+                size={13}
                 color={activeMode === 'snapshot' ? '#FFFFFF' : colors.textSecondary}
               />
               <Text
@@ -378,16 +375,8 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
 
       {/* Zone de lecture embarquée principale */}
       <View style={[styles.videoWrapper, isFullScreen && styles.videoWrapperFullScreen]}>
-        {!hasVideoUrl && !hasSnapshot ? (
-          <View style={styles.noConfigContainer}>
-            <Ionicons name="warning-outline" size={40} color={colors.textSecondary} />
-            <Text style={styles.noConfigTitle}>Aucune source configurée</Text>
-            <Text style={styles.noConfigSubtitle}>
-              Renseignez une adresse RTSP, HTTP ou un instantané Snapshot dans les paramètres de la caméra.
-            </Text>
-          </View>
-        ) : activeMode === 'video' && hasVideoUrl ? (
-          <EmbeddedVideoPlayer
+        {activeMode === 'video' && isHttpVideo ? (
+          <SafeHttpVideoPlayer
             url={fullUrl}
             autoPlay={autoPlay}
             hasSnapshotFallback={hasSnapshot}
@@ -398,11 +387,23 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
             snapshotUrl={camera.snapshot_url}
             autoRefresh={autoPlay}
           />
+        ) : isRtsp ? (
+          <View style={styles.noConfigContainer}>
+            <View style={styles.rtspIconBox}>
+              <Ionicons name="videocam" size={28} color={colors.primary} />
+            </View>
+            <Text style={styles.noConfigTitle}>Flux RTSP configuré</Text>
+            <Text style={styles.noConfigSubtitle}>
+              Pour un affichage vidéo direct embarqué, renseignez un flux HTTP/HLS (.m3u8) ou l'URL Snapshot JPEG dans les réglages de la caméra.
+            </Text>
+          </View>
         ) : (
           <View style={styles.noConfigContainer}>
-            <Ionicons name="videocam-outline" size={40} color={colors.textSecondary} />
-            <Text style={styles.noConfigTitle}>Flux non prêt</Text>
-            <Text style={styles.noConfigSubtitle}>Configuration de source requise.</Text>
+            <Ionicons name="warning-outline" size={36} color={colors.textSecondary} />
+            <Text style={styles.noConfigTitle}>Source non configurée</Text>
+            <Text style={styles.noConfigSubtitle}>
+              Ajoutez une URL de flux (HTTP, HLS ou Snapshot) dans les réglages.
+            </Text>
           </View>
         )}
       </View>
@@ -411,7 +412,11 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
       <View style={styles.footer}>
         <View style={styles.footerRow}>
           <Text style={styles.footerModeBadge}>
-            {activeMode === 'video' ? 'LECTEUR VIDÉO INTÉGRÉ' : 'INSTANTANÉ DIRECT EMBARQUÉ'}
+            {activeMode === 'video' && isHttpVideo
+              ? 'FLUX VIDÉO INTÉGRÉ'
+              : hasSnapshot
+              ? 'INSTANTANÉ DIRECT EMBARQUÉ'
+              : 'FLUX EN ATTENTE'}
           </Text>
           <Text style={styles.urlText} numberOfLines={1}>
             {cleanDisplayUrl}
@@ -633,17 +638,17 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   errorIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: 'rgba(255, 76, 76, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   errorTitle: {
     color: colors.textPrimary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,
     textAlign: 'center',
@@ -653,20 +658,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     maxWidth: 290,
-    marginBottom: 14,
+    marginBottom: 12,
     lineHeight: 16,
   },
   errorActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 8,
   },
   retryButtonText: {
@@ -679,7 +684,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 180, 216, 0.15)',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(0, 180, 216, 0.3)',
@@ -690,22 +695,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   noConfigContainer: {
-    padding: 20,
+    padding: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  rtspIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 180, 216, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   noConfigTitle: {
     color: colors.textPrimary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginTop: 8,
+    marginTop: 4,
   },
   noConfigSubtitle: {
     color: colors.textSecondary,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 4,
-    maxWidth: 280,
+    maxWidth: 290,
     lineHeight: 16,
   },
   footer: {
@@ -731,4 +745,3 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
 });
-
