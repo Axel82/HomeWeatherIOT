@@ -33,6 +33,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
   const [location, setLocation] = useState('');
   const [useDetailedConfig, setUseDetailedConfig] = useState(false);
   const [rtspUrl, setRtspUrl] = useState('');
+  const [snapshotUrl, setSnapshotUrl] = useState('');
   const [ipAddress, setIpAddress] = useState('');
   const [port, setPort] = useState('554');
   const [channelPath, setChannelPath] = useState('/stream1');
@@ -46,6 +47,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
         setName(cameraToEdit.name);
         setLocation(cameraToEdit.location || '');
         setRtspUrl(cameraToEdit.rtsp_url || '');
+        setSnapshotUrl(cameraToEdit.snapshot_url || '');
         setIpAddress(cameraToEdit.ip_address || '');
         setPort(cameraToEdit.port ? cameraToEdit.port.toString() : '554');
         setChannelPath(cameraToEdit.channel_path || '/stream1');
@@ -56,6 +58,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
         setName('');
         setLocation('');
         setRtspUrl('');
+        setSnapshotUrl('');
         setIpAddress('');
         setPort('554');
         setChannelPath('/stream1');
@@ -96,6 +99,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
         name: name.trim(),
         location: location.trim() || null,
         rtsp_url: finalRtspUrl,
+        snapshot_url: snapshotUrl.trim() || null,
         ip_address: ipAddress.trim() || null,
         port: parseInt(port, 10) || 554,
         channel_path: channelPath.trim() || null,
@@ -191,7 +195,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
                     autoCorrect={false}
                   />
                   <Text style={styles.hintText}>
-                    Prend en charge le format rtsp://[user:pass@]ip:port/path
+                    Format RTSP ou HTTP (ex: rtsp://[user:pass@]ip:port/path ou http://ip/live.m3u8)
                   </Text>
                 </View>
               ) : (
@@ -264,6 +268,23 @@ export const CameraModal: React.FC<CameraModalProps> = ({
                   </View>
                 </>
               )}
+
+              {/* URL Snapshot / Image JPEG instantanée */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>URL d'instantané Snapshot (Optionnel)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={snapshotUrl}
+                  onChangeText={setSnapshotUrl}
+                  placeholder="http://192.168.1.50/cgi-bin/snapshot.cgi"
+                  placeholderTextColor={colors.textSecondary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Text style={styles.hintText}>
+                  Permet d'afficher une image JPEG rafraîchie en direct dans l'application
+                </Text>
+              </View>
 
               {/* Bouton de sauvegarde */}
               <TouchableOpacity
