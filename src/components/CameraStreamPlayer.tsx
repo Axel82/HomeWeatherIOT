@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { LibVlcPlayerView, LibVlcPlayerViewRef } from 'expo-libvlc-player';
 import { colors } from '../theme/colors';
 import { Camera, buildCameraRtspUrl } from '../models/Camera';
 
@@ -22,8 +23,144 @@ interface CameraStreamPlayerProps {
 }
 
 /**
+ * Lecteur natif embarqué LibVLC pour les flux RTSP (rtsp://...).
+ * Permet de décoder et lire le flux RTSP directement dans l'application.
+ */
+const EmbeddedVlcRtspPlayer: React.FC<{
+  url: string;
+  autoPlay?: boolean;
+  onFallbackToSnapshot?: () => void;
+  hasSnapshotFallback?: boolean;
+}> = ({ url, autoPlay = true, onFallbackToSnapshot, hasSnapshotFallback = false }) => {
+  const vlcRef = useRef<LibVlcPlayerViewRef | null>(null);
+  const [isBuffering, setIsBuffering] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(autoPlay);
+  const [isMuted, setIsMuted] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  const handleTogglePlay = async () => {
+    if (!vlcRef.current) return;
+    try {
+      if (isPlaying) {
+        await vlcRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        await vlcRef.current.play();
+        setIsPlaying(true);
+      }
+    } catch (err) {
+      console.warn('VLC Play/Pause toggle error:', err);
+    }
+  };
+
+  const handleToggleMute = () => {
+    setIsMuted((prev) => !prev);
+  };
+
+  const handleRetry = () => {
+    setHasError(false);
+    setErrorMessage(null);
+    setIsBuffering(true);
+    setRetryKey((k) => k + 1);
+  };
+
+  if (hasError) {
+    return (
+      <View style={styles.errorContainer}>
+        <View style={styles.errorIconCircle}>
+          <Ionicons name="videocam-off-outline" size={30} color={colors.error} />
+        </View>
+        <Text style={styles.errorTitle}>Flux RTSP inaccessible</Text>
+        <Text style={styles.errorSubtitle}>
+          {errorMessage || 'Impossible de se connecter au flux RTSP ou délai d\'attente dépassé.'}
+        </Text>
+
+        <View style={styles.errorActionsRow}>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Ionicons name="reload" size={15} color={colors.textPrimary} style={{ marginRight: 6 }} />
+            <Text style={styles.retryButtonText}>Réessayer</Text>
+          </TouchableOpacity>
+
+          {hasSnapshotFallback && onFallbackToSnapshot && (
+            <TouchableOpacity style={styles.fallbackButton} onPress={onFallbackToSnapshot}>
+              <Ionicons name="images-outline" size={15} color={colors.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.fallbackButtonText}>Voir Instantané Live</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.videoInnerContainer}>
+      <LibVlcPlayerView
+        key={`vlc-${retryKey}`}
+        ref={vlcRef}
+        source={url}
+        style={styles.vlcPlayerView}
+        autoplay={autoPlay}
+        mute={isMuted}
+        contentFit="contain"
+        options={[
+          '--network-caching=1500',
+          '--rtsp-tcp',
+          '--clock-jitter=0',
+          '--drop-late-frames',
+          '--skip-frames',
+        ]}
+        onPlaying={() => {
+          setIsBuffering(false);
+          setIsPlaying(true);
+          setHasError(false);
+        }}
+        onBuffering={(e) => {
+          if (e.value < 100) {
+            setIsBuffering(true);
+          } else {
+            setIsBuffering(false);
+          }
+        }}
+        onPaused={() => {
+          setIsPlaying(false);
+        }}
+        onStopped={() => {
+          setIsPlaying(false);
+        }}
+        onEncounteredError={(e) => {
+          setIsBuffering(false);
+          setHasError(true);
+          setErrorMessage(e.message || 'Erreur lors de la lecture du flux RTSP.');
+        }}
+      />
+
+      {isBuffering && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Connexion au flux RTSP (LibVLC)...</Text>
+        </View>
+      )}
+
+      {/* Barre de contrôles VLC intégrée */}
+      <View style={styles.videoControlsOverlay}>
+        <TouchableOpacity style={styles.controlButton} onPress={handleTogglePlay}>
+          <Ionicons name={isPlaying ? 'pause' : 'play'} size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.controlButton} onPress={handleToggleMute}>
+          <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.controlButton} onPress={handleRetry}>
+          <Ionicons name="refresh" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+/**
  * Lecteur vidéo natif expo-video pour flux HTTP/HTTPS (HLS .m3u8, MP4, HTTP Live stream).
- * Ne doit être appelé qu'avec une URL http:// ou https:// valide.
  */
 const SafeHttpVideoPlayer: React.FC<{
   url: string;
@@ -275,20 +412,21 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
   const isHttpVideo = fullUrl.startsWith('http://') || fullUrl.startsWith('https://');
   const isRtsp = fullUrl.startsWith('rtsp://');
   const hasSnapshot = !!camera.snapshot_url && camera.snapshot_url.trim().length > 0;
+  const hasStreamUrl = !!fullUrl && fullUrl.trim().length > 0;
 
-  // Si c'est un flux HTTP(S), on peut tenter le lecteur vidéo, sinon si snapshot disponible on utilise le snapshot
-  const [activeMode, setActiveMode] = useState<'video' | 'snapshot'>(
-    isHttpVideo ? 'video' : 'snapshot'
+  // Choix du mode initial : Stream si disponible (RTSP LibVLC ou HTTP), sinon Snapshot
+  const [activeMode, setActiveMode] = useState<'stream' | 'snapshot'>(
+    hasStreamUrl ? 'stream' : 'snapshot'
   );
 
   const cleanDisplayUrl =
-    activeMode === 'video' && isHttpVideo
+    activeMode === 'stream' && hasStreamUrl
       ? fullUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:••••@')
       : camera.snapshot_url || (fullUrl ? fullUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:••••@') : 'Non configuré');
 
   return (
     <View style={[styles.container, isFullScreen && styles.fullScreenContainer]}>
-      {/* En-tête avec titre et indicateur direct */}
+      {/* En-tête avec titre, indicateur direct et sélecteur de mode */}
       <View style={styles.header}>
         <View style={styles.headerInfo}>
           <View style={styles.titleRow}>
@@ -304,25 +442,25 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
           )}
         </View>
 
-        {/* Sélecteur de mode si les deux sont disponibles */}
-        {isHttpVideo && hasSnapshot && (
+        {/* Sélecteur de mode si stream vidéo et snapshot sont tous deux disponibles */}
+        {hasStreamUrl && hasSnapshot && (
           <View style={styles.modeToggleGroup}>
             <TouchableOpacity
-              style={[styles.modeButton, activeMode === 'video' && styles.modeButtonActive]}
-              onPress={() => setActiveMode('video')}
+              style={[styles.modeButton, activeMode === 'stream' && styles.modeButtonActive]}
+              onPress={() => setActiveMode('stream')}
             >
               <Ionicons
                 name="videocam"
                 size={13}
-                color={activeMode === 'video' ? '#FFFFFF' : colors.textSecondary}
+                color={activeMode === 'stream' ? '#FFFFFF' : colors.textSecondary}
               />
               <Text
                 style={[
                   styles.modeButtonText,
-                  activeMode === 'video' && styles.modeButtonTextActive,
+                  activeMode === 'stream' && styles.modeButtonTextActive,
                 ]}
               >
-                Vidéo
+                {isRtsp ? 'RTSP VLC' : 'Vidéo'}
               </Text>
             </TouchableOpacity>
 
@@ -375,7 +513,16 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
 
       {/* Zone de lecture embarquée principale */}
       <View style={[styles.videoWrapper, isFullScreen && styles.videoWrapperFullScreen]}>
-        {activeMode === 'video' && isHttpVideo ? (
+        {activeMode === 'stream' && isRtsp ? (
+          // Lecture RTSP 100% embarquée avec LibVLC
+          <EmbeddedVlcRtspPlayer
+            url={fullUrl}
+            autoPlay={autoPlay}
+            hasSnapshotFallback={hasSnapshot}
+            onFallbackToSnapshot={() => setActiveMode('snapshot')}
+          />
+        ) : activeMode === 'stream' && isHttpVideo ? (
+          // Lecture HTTP / HLS avec expo-video
           <SafeHttpVideoPlayer
             url={fullUrl}
             autoPlay={autoPlay}
@@ -383,26 +530,17 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
             onFallbackToSnapshot={() => setActiveMode('snapshot')}
           />
         ) : hasSnapshot && camera.snapshot_url ? (
+          // Lecture Instantané Live continue
           <EmbeddedSnapshotStream
             snapshotUrl={camera.snapshot_url}
             autoRefresh={autoPlay}
           />
-        ) : isRtsp ? (
-          <View style={styles.noConfigContainer}>
-            <View style={styles.rtspIconBox}>
-              <Ionicons name="videocam" size={28} color={colors.primary} />
-            </View>
-            <Text style={styles.noConfigTitle}>Flux RTSP configuré</Text>
-            <Text style={styles.noConfigSubtitle}>
-              Pour un affichage vidéo direct embarqué, renseignez un flux HTTP/HLS (.m3u8) ou l'URL Snapshot JPEG dans les réglages de la caméra.
-            </Text>
-          </View>
         ) : (
           <View style={styles.noConfigContainer}>
             <Ionicons name="warning-outline" size={36} color={colors.textSecondary} />
             <Text style={styles.noConfigTitle}>Source non configurée</Text>
             <Text style={styles.noConfigSubtitle}>
-              Ajoutez une URL de flux (HTTP, HLS ou Snapshot) dans les réglages.
+              Renseignez une URL de flux (RTSP, HTTP/HLS ou Snapshot) dans les réglages de la caméra.
             </Text>
           </View>
         )}
@@ -412,8 +550,10 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
       <View style={styles.footer}>
         <View style={styles.footerRow}>
           <Text style={styles.footerModeBadge}>
-            {activeMode === 'video' && isHttpVideo
-              ? 'FLUX VIDÉO INTÉGRÉ'
+            {activeMode === 'stream' && isRtsp
+              ? 'LECTEUR RTSP EMBARQUÉ (LIBVLC)'
+              : activeMode === 'stream' && isHttpVideo
+              ? 'LECTEUR VIDÉO DIRECT (HLS/HTTP)'
               : hasSnapshot
               ? 'INSTANTANÉ DIRECT EMBARQUÉ'
               : 'FLUX EN ATTENTE'}
@@ -530,6 +670,10 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  vlcPlayerView: {
+    width: '100%',
+    height: '100%',
   },
   videoView: {
     width: '100%',
@@ -698,15 +842,6 @@ const styles = StyleSheet.create({
     padding: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  rtspIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 180, 216, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
   },
   noConfigTitle: {
     color: colors.textPrimary,
