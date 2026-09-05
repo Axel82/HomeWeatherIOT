@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
-  Linking,
   Platform,
   StyleSheet,
   Text,
@@ -20,17 +18,28 @@ interface CameraStreamPlayerProps {
   autoPlay?: boolean;
   onClose?: () => void;
   isFullScreen?: boolean;
+  onToggleFullScreen?: () => void;
 }
 
 /**
- * Sous-composant dédié à la lecture des flux HTTP/HTTPS (HLS, MP4, etc.)
- * Isolé pour que useVideoPlayer ne soit exécuté que si le flux est compatible expo-video.
+ * Sous-composant dédié à la lecture vidéo directe (HLS, MP4, HTTP Live, RTSP)
+ * avec gestion de statut de lecture, buffering et contrôles intégrés.
  */
-const HttpVideoView: React.FC<{ url: string; autoPlay?: boolean }> = ({ url, autoPlay = true }) => {
-  const [streamError, setStreamError] = useState<string | null>(null);
+const EmbeddedVideoPlayer: React.FC<{
+  url: string;
+  autoPlay?: boolean;
+  onFallbackToSnapshot?: () => void;
+  hasSnapshotFallback?: boolean;
+}> = ({ url, autoPlay = true, onFallbackToSnapshot, hasSnapshotFallback = false }) => {
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(autoPlay);
+  const [retryKey, setRetryKey] = useState(0);
 
   const player = useVideoPlayer(url, (p) => {
     p.loop = true;
+    p.muted = true;
     if (autoPlay) {
       p.play();
     }
@@ -39,38 +48,221 @@ const HttpVideoView: React.FC<{ url: string; autoPlay?: boolean }> = ({ url, aut
   useEffect(() => {
     if (!player) return;
 
-    const statusSubscription = player.addListener('statusChange', (status) => {
-      if (status.status === 'error') {
-        setStreamError(status.error?.message || 'Erreur lors de la lecture du flux vidéo.');
-      } else if (status.status === 'readyToPlay') {
-        setStreamError(null);
+    // Synchronisation de l'état du lecteur
+    const statusSub = player.addListener('statusChange', (s) => {
+      if (s.status === 'error') {
+        setStatus('error');
+        setErrorMessage(s.error?.message || 'Flux vidéo inaccessible ou format non pris en charge.');
+      } else if (s.status === 'readyToPlay') {
+        setStatus('ready');
+        setErrorMessage(null);
+      } else if (s.status === 'loading') {
+        setStatus('loading');
       }
     });
 
-    return () => {
-      statusSubscription.remove();
-    };
-  }, [player]);
+    const playingSub = player.addListener('playingChange', (p) => {
+      setIsPlaying(p.isPlaying);
+    });
 
-  if (streamError) {
+    const mutedSub = player.addListener('mutedChange', (m) => {
+      setIsMuted(m.muted);
+    });
+
+    return () => {
+      statusSub.remove();
+      playingSub.remove();
+      mutedSub.remove();
+    };
+  }, [player, retryKey]);
+
+  const handleTogglePlay = () => {
+    if (!player) return;
+    if (isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  };
+
+  const handleToggleMute = () => {
+    if (!player) return;
+    player.muted = !player.muted;
+  };
+
+  const handleRetry = () => {
+    setStatus('loading');
+    setErrorMessage(null);
+    setRetryKey((k) => k + 1);
+    if (player) {
+      player.replay();
+    }
+  };
+
+  if (status === 'error') {
     return (
-      <View style={styles.messageBox}>
-        <Ionicons name="alert-circle-outline" size={36} color={colors.error} />
-        <Text style={styles.errorTitle}>Erreur de lecture</Text>
-        <Text style={styles.errorSubtitle}>{streamError}</Text>
+      <View style={styles.errorContainer}>
+        <View style={styles.errorIconCircle}>
+          <Ionicons name="videocam-off-outline" size={32} color={colors.error} />
+        </View>
+        <Text style={styles.errorTitle}>Flux vidéo non accessible</Text>
+        <Text style={styles.errorSubtitle}>{errorMessage}</Text>
+
+        <View style={styles.errorActionsRow}>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Ionicons name="reload" size={16} color={colors.textPrimary} style={{ marginRight: 6 }} />
+            <Text style={styles.retryButtonText}>Réessayer</Text>
+          </TouchableOpacity>
+
+          {hasSnapshotFallback && onFallbackToSnapshot && (
+            <TouchableOpacity style={styles.fallbackButton} onPress={onFallbackToSnapshot}>
+              <Ionicons name="images-outline" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.fallbackButtonText}>Voir Instantané Live</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   }
 
   return (
-    <VideoView
-      style={styles.videoView}
-      player={player}
-      fullscreenOptions={{ enable: true }}
-      allowsPictureInPicture
-      startsPictureInPictureAutomatically
-      contentFit="contain"
-    />
+    <View style={styles.videoInnerContainer}>
+      <VideoView
+        style={styles.videoView}
+        player={player}
+        nativeControls={false}
+        fullscreenOptions={{ enable: true }}
+        allowsPictureInPicture
+        startsPictureInPictureAutomatically
+        contentFit="contain"
+      />
+
+      {status === 'loading' && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Connexion au flux direct...</Text>
+        </View>
+      )}
+
+      {/* Barre de contrôles vidéo intégrée */}
+      <View style={styles.videoControlsOverlay}>
+        <TouchableOpacity style={styles.controlButton} onPress={handleTogglePlay}>
+          <Ionicons name={isPlaying ? 'pause' : 'play'} size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.controlButton} onPress={handleToggleMute}>
+          <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.controlButton} onPress={handleRetry}>
+          <Ionicons name="refresh" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+/**
+ * Sous-composant dédié au flux instantané direct (Live Snapshot Image Stream)
+ * Rafraîchit les images JPEG en direct à haute fréquence de manière 100% embarquée.
+ */
+const EmbeddedSnapshotStream: React.FC<{
+  snapshotUrl: string;
+  autoRefresh?: boolean;
+}> = ({ snapshotUrl, autoRefresh = true }) => {
+  const [snapshotKey, setSnapshotKey] = useState(Date.now());
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isLiveActive, setIsLiveActive] = useState(autoRefresh);
+  const [refreshInterval, setRefreshInterval] = useState(2000); // 2 secondes par défaut
+  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString());
+
+  useEffect(() => {
+    if (!isLiveActive || !snapshotUrl) return;
+
+    const interval = setInterval(() => {
+      setSnapshotKey(Date.now());
+    }, refreshInterval);
+
+    return () => clearInterval(interval);
+  }, [isLiveActive, snapshotUrl, refreshInterval]);
+
+  const handleManualRefresh = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setSnapshotKey(Date.now());
+  };
+
+  const handleToggleLive = () => {
+    setIsLiveActive((prev) => !prev);
+  };
+
+  const currentUri = `${snapshotUrl}${snapshotUrl.includes('?') ? '&' : '?'}_t=${snapshotKey}`;
+
+  if (hasError) {
+    return (
+      <View style={styles.errorContainer}>
+        <View style={styles.errorIconCircle}>
+          <Ionicons name="image-outline" size={32} color={colors.error} />
+        </View>
+        <Text style={styles.errorTitle}>Instantané indisponible</Text>
+        <Text style={styles.errorSubtitle}>
+          Impossible de récupérer l'image depuis l'adresse fournie.
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleManualRefresh}>
+          <Ionicons name="reload" size={16} color={colors.textPrimary} style={{ marginRight: 6 }} />
+          <Text style={styles.retryButtonText}>Actualiser l'image</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.snapshotContainer}>
+      <Image
+        key={snapshotKey}
+        source={{ uri: currentUri }}
+        style={styles.snapshotImage}
+        resizeMode="contain"
+        onLoadStart={() => setIsLoading(true)}
+        onLoad={() => {
+          setIsLoading(false);
+          setHasError(false);
+          setLastUpdated(new Date().toLocaleTimeString());
+        }}
+        onError={() => {
+          setIsLoading(false);
+          setHasError(true);
+        }}
+      />
+
+      {isLoading && (
+        <View style={styles.snapshotLoaderOverlay}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      )}
+
+      {/* Barre de contrôles instantané embarqué */}
+      <View style={styles.snapshotControlsOverlay}>
+        <View style={styles.snapshotStatusBadge}>
+          <View style={[styles.pulseDot, { backgroundColor: isLiveActive ? colors.success : colors.textSecondary }]} />
+          <Text style={styles.snapshotStatusText}>
+            {isLiveActive ? 'DIRECT 2s' : 'PAUSE'}
+          </Text>
+          <Text style={styles.snapshotTimeText}>{lastUpdated}</Text>
+        </View>
+
+        <View style={styles.snapshotButtonsRow}>
+          <TouchableOpacity
+            style={[styles.controlButton, isLiveActive && styles.controlButtonActive]}
+            onPress={handleToggleLive}
+          >
+            <Ionicons name={isLiveActive ? 'pause' : 'play'} size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.controlButton} onPress={handleManualRefresh}>
+            <Ionicons name="refresh" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
   );
 };
 
@@ -79,147 +271,152 @@ export const CameraStreamPlayer: React.FC<CameraStreamPlayerProps> = ({
   autoPlay = true,
   onClose,
   isFullScreen = false,
+  onToggleFullScreen,
 }) => {
-  const [snapshotKey, setSnapshotKey] = useState(Date.now());
-  const [snapshotLoading, setSnapshotLoading] = useState(false);
-  const [snapshotError, setSnapshotError] = useState(false);
-
   const fullUrl = buildCameraRtspUrl(camera);
-  const isRtsp = fullUrl.startsWith('rtsp://') || (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://'));
-  const isHttpStream = fullUrl.startsWith('http://') || fullUrl.startsWith('https://');
   const hasSnapshot = !!camera.snapshot_url;
+  const hasVideoUrl = !!fullUrl;
 
-  // Actualisation automatique du snapshot toutes les 5 secondes si écran actif
-  useEffect(() => {
-    if (!hasSnapshot) return;
-    const interval = setInterval(() => {
-      setSnapshotKey(Date.now());
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [hasSnapshot]);
+  // Choix initial du mode : vidéo si disponible, sinon snapshot
+  const [activeMode, setActiveMode] = useState<'video' | 'snapshot'>(
+    hasVideoUrl ? 'video' : 'snapshot'
+  );
 
-  const handleOpenExternal = async () => {
-    if (!fullUrl) {
-      Alert.alert('Flux non configuré', 'Aucune adresse de flux n\'a été renseignée pour cette caméra.');
-      return;
-    }
-
-    try {
-      await Linking.openURL(fullUrl);
-    } catch (err) {
-      Alert.alert(
-        'Lecteur externe requis',
-        `Impossible d'ouvrir directement le flux RTSP.\n\nPour lire ce flux sur votre appareil, installez l'application gratuite VLC ou un lecteur RTSP compatible.\n\nURL : ${fullUrl}`
-      );
-    }
-  };
-
-  const handleRefreshSnapshot = () => {
-    setSnapshotError(false);
-    setSnapshotLoading(true);
-    setSnapshotKey(Date.now());
-  };
-
-  const cleanDisplayUrl = fullUrl ? fullUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:••••@') : 'Non configuré';
+  const cleanDisplayUrl =
+    activeMode === 'video'
+      ? fullUrl
+        ? fullUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:••••@')
+        : 'Non configuré'
+      : camera.snapshot_url || 'Non configuré';
 
   return (
     <View style={[styles.container, isFullScreen && styles.fullScreenContainer]}>
-      {/* En-tête avec titre et bouton fermer */}
+      {/* En-tête avec titre, indicateur direct et sélecteur de mode */}
       <View style={styles.header}>
         <View style={styles.headerInfo}>
           <View style={styles.titleRow}>
-            <View style={[styles.liveIndicator, { backgroundColor: isRtsp ? colors.primary : colors.success }]} />
+            <View style={styles.liveIndicator} />
             <Text style={styles.cameraName} numberOfLines={1}>
               {camera.name}
             </Text>
           </View>
           {camera.location && (
-            <Text style={styles.cameraLocation} numberOfLines={1}>{camera.location}</Text>
+            <Text style={styles.cameraLocation} numberOfLines={1}>
+              {camera.location}
+            </Text>
           )}
         </View>
-        <View style={styles.headerActions}>
-          {hasSnapshot && (
-            <TouchableOpacity style={styles.iconButton} onPress={handleRefreshSnapshot} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              <Ionicons name="refresh" size={18} color={colors.textPrimary} />
+
+        {/* Sélecteur de mode si les deux sont disponibles */}
+        {hasVideoUrl && hasSnapshot && (
+          <View style={styles.modeToggleGroup}>
+            <TouchableOpacity
+              style={[styles.modeButton, activeMode === 'video' && styles.modeButtonActive]}
+              onPress={() => setActiveMode('video')}
+            >
+              <Ionicons
+                name="videocam"
+                size={14}
+                color={activeMode === 'video' ? '#FFFFFF' : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  activeMode === 'video' && styles.modeButtonTextActive,
+                ]}
+              >
+                Vidéo
+              </Text>
             </TouchableOpacity>
-          )}
-          {isRtsp && (
-            <TouchableOpacity style={styles.iconButton} onPress={handleOpenExternal} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              <Ionicons name="open-outline" size={18} color={colors.primary} />
+
+            <TouchableOpacity
+              style={[styles.modeButton, activeMode === 'snapshot' && styles.modeButtonActive]}
+              onPress={() => setActiveMode('snapshot')}
+            >
+              <Ionicons
+                name="image"
+                size={14}
+                color={activeMode === 'snapshot' ? '#FFFFFF' : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  activeMode === 'snapshot' && styles.modeButtonTextActive,
+                ]}
+              >
+                Instantané
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.headerActions}>
+          {onToggleFullScreen && (
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={onToggleFullScreen}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Ionicons
+                name={isFullScreen ? 'contract-outline' : 'expand-outline'}
+                size={18}
+                color={colors.textPrimary}
+              />
             </TouchableOpacity>
           )}
           {onClose && (
-            <TouchableOpacity style={styles.iconButton} onPress={onClose} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={onClose}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
               <Ionicons name="close" size={20} color={colors.textPrimary} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Zone d'affichage : Snapshot / HTTP Video / Vue RTSP */}
+      {/* Zone de lecture embarquée principale */}
       <View style={[styles.videoWrapper, isFullScreen && styles.videoWrapperFullScreen]}>
-        {!fullUrl && !hasSnapshot ? (
-          <View style={styles.messageBox}>
-            <Ionicons name="warning-outline" size={36} color={colors.error} />
-            <Text style={styles.messageText}>URL non configurée</Text>
+        {!hasVideoUrl && !hasSnapshot ? (
+          <View style={styles.noConfigContainer}>
+            <Ionicons name="warning-outline" size={40} color={colors.textSecondary} />
+            <Text style={styles.noConfigTitle}>Aucune source configurée</Text>
+            <Text style={styles.noConfigSubtitle}>
+              Renseignez une adresse RTSP, HTTP ou un instantané Snapshot dans les paramètres de la caméra.
+            </Text>
           </View>
-        ) : hasSnapshot && !snapshotError ? (
-          // Affichage Snapshot (Image rafraîchie)
-          <View style={styles.snapshotWrapper}>
-            <Image
-              source={{ uri: `${camera.snapshot_url}${camera.snapshot_url?.includes('?') ? '&' : '?'}_t=${snapshotKey}` }}
-              style={styles.snapshotImage}
-              resizeMode="contain"
-              onLoadStart={() => setSnapshotLoading(true)}
-              onLoadEnd={() => setSnapshotLoading(false)}
-              onError={() => {
-                setSnapshotError(true);
-                setSnapshotLoading(false);
-              }}
-            />
-            {snapshotLoading && (
-              <View style={styles.snapshotLoaderOverlay}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            )}
-            {isRtsp && (
-              <TouchableOpacity style={styles.rtspOverlayBadge} onPress={handleOpenExternal}>
-                <Ionicons name="play-circle" size={16} color={colors.textPrimary} style={{ marginRight: 4 }} />
-                <Text style={styles.rtspOverlayBadgeText}>Ouvrir VLC</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ) : isHttpStream ? (
-          // Affichage Flux HTTP/HLS avec expo-video
-          <HttpVideoView url={fullUrl} autoPlay={autoPlay} />
+        ) : activeMode === 'video' && hasVideoUrl ? (
+          <EmbeddedVideoPlayer
+            url={fullUrl}
+            autoPlay={autoPlay}
+            hasSnapshotFallback={hasSnapshot}
+            onFallbackToSnapshot={() => setActiveMode('snapshot')}
+          />
+        ) : hasSnapshot && camera.snapshot_url ? (
+          <EmbeddedSnapshotStream
+            snapshotUrl={camera.snapshot_url}
+            autoRefresh={autoPlay}
+          />
         ) : (
-          // Affichage Flux RTSP (Info & Bouton VLC)
-          <View style={styles.rtspPlaceholder}>
-            <View style={styles.rtspIconCircle}>
-              <Ionicons name="videocam" size={32} color={colors.primary} />
-            </View>
-            <Text style={styles.rtspTitle}>Flux RTSP Prêt</Text>
-            <Text style={styles.rtspSubtitle}>
-              {camera.ip_address ? `${camera.ip_address}:${camera.port || 554}` : 'Flux réseau local'}
-            </Text>
-
-            <TouchableOpacity style={styles.vlcButton} onPress={handleOpenExternal}>
-              <Ionicons name="play" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={styles.vlcButtonText}>Ouvrir dans VLC / Lecteur</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.rtspHint}>
-              Le protocole RTSP se lit directement dans une application compatible comme VLC.
-            </Text>
+          <View style={styles.noConfigContainer}>
+            <Ionicons name="videocam-outline" size={40} color={colors.textSecondary} />
+            <Text style={styles.noConfigTitle}>Flux non prêt</Text>
+            <Text style={styles.noConfigSubtitle}>Configuration de source requise.</Text>
           </View>
         )}
       </View>
 
       {/* Pied d'information flux */}
       <View style={styles.footer}>
-        <Text style={styles.urlText} numberOfLines={1}>
-          Flux: {cleanDisplayUrl}
-        </Text>
+        <View style={styles.footerRow}>
+          <Text style={styles.footerModeBadge}>
+            {activeMode === 'video' ? 'LECTEUR VIDÉO INTÉGRÉ' : 'INSTANTANÉ DIRECT EMBARQUÉ'}
+          </Text>
+          <Text style={styles.urlText} numberOfLines={1}>
+            {cleanDisplayUrl}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -237,6 +434,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 0,
     borderWidth: 0,
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -244,7 +442,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   headerInfo: {
     flex: 1,
@@ -263,18 +463,44 @@ const styles = StyleSheet.create({
   },
   cameraName: {
     color: colors.textPrimary,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
   },
   cameraLocation: {
     color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  modeToggleGroup: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 8,
+    padding: 2,
+    marginRight: 8,
+  },
+  modeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  modeButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  modeButtonText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  modeButtonTextActive: {
+    color: '#FFFFFF',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   iconButton: {
     padding: 6,
@@ -284,25 +510,59 @@ const styles = StyleSheet.create({
   videoWrapper: {
     width: '100%',
     aspectRatio: 16 / 9,
-    backgroundColor: '#0a0e17',
+    backgroundColor: '#05070c',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   videoWrapperFullScreen: {
     flex: 1,
     aspectRatio: undefined,
   },
-  videoView: {
-    width: '100%',
-    height: '100%',
-  },
-  snapshotWrapper: {
+  videoInnerContainer: {
     width: '100%',
     height: '100%',
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  videoView: {
+    width: '100%',
+    height: '100%',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 10,
+  },
+  videoControlsOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderRadius: 8,
+    padding: 4,
+    gap: 4,
+  },
+  snapshotContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
     backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   snapshotImage: {
     width: '100%',
@@ -316,106 +576,159 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 4,
   },
-  rtspOverlayBadge: {
+  snapshotControlsOverlay: {
     position: 'absolute',
     bottom: 8,
+    left: 8,
     right: 8,
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 180, 216, 0.85)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
   },
-  rtspOverlayBadgeText: {
+  snapshotStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 6,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  snapshotStatusText: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
   },
-  rtspPlaceholder: {
-    padding: 16,
+  snapshotTimeText: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  snapshotButtonsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 8,
+    padding: 4,
+    gap: 4,
+  },
+  controlButton: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  controlButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  errorContainer: {
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
   },
-  rtspIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(0, 180, 216, 0.15)',
+  errorIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 76, 76, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  rtspTitle: {
+  errorTitle: {
     color: colors.textPrimary,
     fontSize: 15,
     fontWeight: 'bold',
-  },
-  rtspSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
-    marginBottom: 12,
-  },
-  vlcButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 10,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  vlcButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  rtspHint: {
-    color: colors.textSecondary,
-    fontSize: 11,
+    marginBottom: 4,
     textAlign: 'center',
-    marginTop: 10,
-    maxWidth: 290,
-    opacity: 0.8,
-  },
-  messageBox: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  messageText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  errorTitle: {
-    color: colors.error,
-    fontSize: 15,
-    fontWeight: 'bold',
-    marginTop: 8,
   },
   errorSubtitle: {
     color: colors.textSecondary,
     fontSize: 12,
-    marginTop: 4,
     textAlign: 'center',
+    maxWidth: 290,
+    marginBottom: 14,
+    lineHeight: 16,
+  },
+  errorActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  fallbackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 180, 216, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 180, 216, 0.3)',
+  },
+  fallbackButtonText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  noConfigContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noConfigTitle: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginTop: 8,
+  },
+  noConfigSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
     maxWidth: 280,
+    lineHeight: 16,
   },
   footer: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  footerModeBadge: {
+    color: colors.primary,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   urlText: {
+    flex: 1,
     color: colors.textSecondary,
     fontSize: 11,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
 });
+

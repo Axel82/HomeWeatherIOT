@@ -25,9 +25,13 @@ export function buildCameraRtspUrl(camera: Partial<Camera>): string {
   if (camera.rtsp_url && camera.rtsp_url.trim().length > 0) {
     let url = camera.rtsp_url.trim();
     // Si l'utilisateur a renseigné username/password séparément mais que l'URL ne les contient pas
-    if (camera.username && camera.password && !url.includes('@') && url.startsWith('rtsp://')) {
-      const withoutScheme = url.replace('rtsp://', '');
-      return `rtsp://${encodeURIComponent(camera.username)}:${encodeURIComponent(camera.password)}@${withoutScheme}`;
+    if (camera.username && camera.password && !url.includes('@')) {
+      const match = url.match(/^([a-zA-Z]+:\/\/)(.*)$/);
+      if (match) {
+        const protocol = match[1];
+        const rest = match[2];
+        return `${protocol}${encodeURIComponent(camera.username)}:${encodeURIComponent(camera.password)}@${rest}`;
+      }
     }
     return url;
   }

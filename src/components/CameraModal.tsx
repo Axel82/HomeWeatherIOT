@@ -169,7 +169,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
                   onPress={() => setUseDetailedConfig(false)}
                 >
                   <Text style={[styles.modeTabText, !useDetailedConfig && styles.modeTabTextActive]}>
-                    URL RTSP Directe
+                    URL Directe (RTSP / HLS / HTTP)
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -184,18 +184,18 @@ export const CameraModal: React.FC<CameraModalProps> = ({
 
               {!useDetailedConfig ? (
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>URL du flux RTSP *</Text>
+                  <Text style={styles.fieldLabel}>URL du flux direct *</Text>
                   <TextInput
                     style={styles.textInput}
                     value={rtspUrl}
                     onChangeText={setRtspUrl}
-                    placeholder="rtsp://admin:pass@192.168.1.50:554/stream1"
+                    placeholder="rtsp://... ou http://.../stream.m3u8"
                     placeholderTextColor={colors.textSecondary}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
                   <Text style={styles.hintText}>
-                    Format RTSP ou HTTP (ex: rtsp://[user:pass@]ip:port/path ou http://ip/live.m3u8)
+                    Lecture 100% embarquée : flux RTSP, HLS (.m3u8) ou HTTP direct
                   </Text>
                 </View>
               ) : (
